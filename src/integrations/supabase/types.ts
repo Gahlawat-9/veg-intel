@@ -14,16 +14,268 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      alerts: {
+        Row: {
+          city: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          is_active: boolean
+          message: string
+          severity: string
+          title: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          message: string
+          severity?: string
+          title: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          is_active?: boolean
+          message?: string
+          severity?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      crops: {
+        Row: {
+          city: string
+          created_at: string
+          farmer_id: string
+          harvest_date: string
+          id: string
+          quantity_kg: number
+          status: string
+          updated_at: string
+          vegetable_id: string
+        }
+        Insert: {
+          city?: string
+          created_at?: string
+          farmer_id: string
+          harvest_date: string
+          id?: string
+          quantity_kg: number
+          status?: string
+          updated_at?: string
+          vegetable_id: string
+        }
+        Update: {
+          city?: string
+          created_at?: string
+          farmer_id?: string
+          harvest_date?: string
+          id?: string
+          quantity_kg?: number
+          status?: string
+          updated_at?: string
+          vegetable_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crops_vegetable_id_fkey"
+            columns: ["vegetable_id"]
+            isOneToOne: false
+            referencedRelation: "vegetables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demand_config: {
+        Row: {
+          daily_demand_kg: number
+          id: string
+          price_per_kg: number
+          updated_at: string
+          updated_by: string | null
+          vegetable_id: string
+        }
+        Insert: {
+          daily_demand_kg?: number
+          id?: string
+          price_per_kg?: number
+          updated_at?: string
+          updated_by?: string | null
+          vegetable_id: string
+        }
+        Update: {
+          daily_demand_kg?: number
+          id?: string
+          price_per_kg?: number
+          updated_at?: string
+          updated_by?: string | null
+          vegetable_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demand_config_vegetable_id_fkey"
+            columns: ["vegetable_id"]
+            isOneToOne: true
+            referencedRelation: "vegetables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feedback: {
+        Row: {
+          created_at: string
+          farmer_id: string
+          id: string
+          message: string
+          rating: number | null
+          status: string
+          subject: string
+        }
+        Insert: {
+          created_at?: string
+          farmer_id: string
+          id?: string
+          message: string
+          rating?: number | null
+          status?: string
+          subject: string
+        }
+        Update: {
+          created_at?: string
+          farmer_id?: string
+          id?: string
+          message?: string
+          rating?: number | null
+          status?: string
+          subject?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          city: string | null
+          created_at: string
+          full_name: string
+          id: string
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          city?: string | null
+          created_at?: string
+          full_name?: string
+          id?: string
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+      vegetables: {
+        Row: {
+          created_at: string
+          icon: string | null
+          id: string
+          name: string
+          shelf_life_days: number
+        }
+        Insert: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name: string
+          shelf_life_days?: number
+        }
+        Update: {
+          created_at?: string
+          icon?: string | null
+          id?: string
+          name?: string
+          shelf_life_days?: number
+        }
+        Relationships: []
+      }
+      weather_cache: {
+        Row: {
+          city: string
+          fetched_at: string
+          humidity: number | null
+          id: string
+          temperature: number | null
+          weather_condition: string | null
+          weather_multiplier: number
+          wind_speed: number | null
+        }
+        Insert: {
+          city: string
+          fetched_at?: string
+          humidity?: number | null
+          id?: string
+          temperature?: number | null
+          weather_condition?: string | null
+          weather_multiplier?: number
+          wind_speed?: number | null
+        }
+        Update: {
+          city?: string
+          fetched_at?: string
+          humidity?: number | null
+          id?: string
+          temperature?: number | null
+          weather_condition?: string | null
+          weather_multiplier?: number
+          wind_speed?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "farmer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +402,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "farmer"],
+    },
   },
 } as const

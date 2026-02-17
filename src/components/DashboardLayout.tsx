@@ -38,6 +38,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 <Link to="/admin/demand" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Demand Config</Link>
                 <Link to="/admin/alerts" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Alerts</Link>
                 <Link to="/admin/feedback" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Feedback</Link>
+                <Link to="/admin/city-map" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">City Map</Link>
+                <Link to="/admin/harvest-planner" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Harvest Planner</Link>
               </>
             )}
             <div className="flex items-center gap-2 border-l border-border pl-4">
@@ -74,6 +76,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                   <Link to="/admin/demand" onClick={() => setMobileMenuOpen(false)} className="rounded-md px-3 py-2 text-sm hover:bg-muted">Demand Config</Link>
                   <Link to="/admin/alerts" onClick={() => setMobileMenuOpen(false)} className="rounded-md px-3 py-2 text-sm hover:bg-muted">Alerts</Link>
                   <Link to="/admin/feedback" onClick={() => setMobileMenuOpen(false)} className="rounded-md px-3 py-2 text-sm hover:bg-muted">Feedback</Link>
+                  <Link to="/admin/city-map" onClick={() => setMobileMenuOpen(false)} className="rounded-md px-3 py-2 text-sm hover:bg-muted">City Map</Link>
+                  <Link to="/admin/harvest-planner" onClick={() => setMobileMenuOpen(false)} className="rounded-md px-3 py-2 text-sm hover:bg-muted">Harvest Planner</Link>
                 </>
               )}
               <Button variant="ghost" size="sm" className="justify-start" onClick={handleSignOut}>

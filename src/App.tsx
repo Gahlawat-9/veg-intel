@@ -14,6 +14,8 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AdminDemandConfig from "./pages/AdminDemandConfig";
 import AdminAlerts from "./pages/AdminAlerts";
 import AdminFeedback from "./pages/AdminFeedback";
+import AdminCityMap from "./pages/AdminCityMap";
+import AdminHarvestPlanner from "./pages/AdminHarvestPlanner";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +49,8 @@ const App = () => (
             <Route path="/admin/demand" element={<ProtectedRoute allowedRole="admin"><AdminDemandConfig /></ProtectedRoute>} />
             <Route path="/admin/alerts" element={<ProtectedRoute allowedRole="admin"><AdminAlerts /></ProtectedRoute>} />
             <Route path="/admin/feedback" element={<ProtectedRoute allowedRole="admin"><AdminFeedback /></ProtectedRoute>} />
+            <Route path="/admin/city-map" element={<ProtectedRoute allowedRole="admin"><AdminCityMap /></ProtectedRoute>} />
+            <Route path="/admin/harvest-planner" element={<ProtectedRoute allowedRole="admin"><AdminHarvestPlanner /></ProtectedRoute>} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>

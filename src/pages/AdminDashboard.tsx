@@ -1,109 +1,63 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { calculateRisk, getRiskLabel, type RiskResult } from '@/lib/riskEngine';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line, Legend } from 'recharts';
-import { TrendingUp, TrendingDown, Package, Users, AlertTriangle, Leaf } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import { TrendingUp, Package, Users, AlertTriangle, Leaf } from 'lucide-react';
+import { MOCK_VEGETABLES, MOCK_CROPS, MOCK_DEMAND_CONFIG, MOCK_ALERTS, MOCK_WEATHER } from '@/data/mockData';
+import { useMemo } from 'react';
 
 const COLORS = ['#2d8a4e', '#d4a017', '#dc2626', '#3b82f6', '#8b5cf6', '#f97316'];
 
 export default function AdminDashboard() {
-  const [loading, setLoading] = useState(true);
-  const [totalFarmers, setTotalFarmers] = useState(0);
-  const [totalCrops, setTotalCrops] = useState(0);
-  const [totalSupply, setTotalSupply] = useState(0);
-  const [activeAlerts, setActiveAlerts] = useState(0);
-  const [supplyDemandData, setSupplyDemandData] = useState<any[]>([]);
-  const [riskDistribution, setRiskDistribution] = useState<{ name: string; value: number }[]>([]);
-  const [vegRisks, setVegRisks] = useState<{ name: string; icon: string; risk: RiskResult }[]>([]);
+  const { totalFarmers, totalCrops, totalSupply, activeAlerts, supplyDemandData, riskDistribution, vegRisks } = useMemo(() => {
+    const uniqueFarmers = new Set(MOCK_CROPS.map(c => c.farmer_id)).size;
+    const activeAlertCount = MOCK_ALERTS.filter(a => a.is_active).length;
+    const wm = MOCK_WEATHER.weather_multiplier;
 
-  useEffect(() => {
-    loadAdminData();
-  }, []);
+    const vegsMap = new Map(MOCK_VEGETABLES.map(v => [v.id, v]));
+    const demandMap = new Map(MOCK_DEMAND_CONFIG.map(d => [d.vegetable_id, d]));
 
-  const loadAdminData = async () => {
-    setLoading(true);
-
-    const [
-      { count: farmerCount },
-      { data: cropsData },
-      { data: vegsData },
-      { data: demandData },
-      { data: weatherData },
-      { count: alertCount },
-    ] = await Promise.all([
-      supabase.from('user_roles').select('*', { count: 'exact', head: true }).eq('role', 'farmer'),
-      supabase.from('crops').select('*').eq('status', 'active'),
-      supabase.from('vegetables').select('*'),
-      supabase.from('demand_config').select('*'),
-      supabase.from('weather_cache').select('*').order('fetched_at', { ascending: false }).limit(1),
-      supabase.from('alerts').select('*', { count: 'exact', head: true }).eq('is_active', true),
-    ]);
-
-    setTotalFarmers(farmerCount || 0);
-    setActiveAlerts(alertCount || 0);
-
-    const vegsMap = new Map((vegsData || []).map(v => [v.id, v]));
-    const demandMap = new Map((demandData || []).map(d => [d.vegetable_id, d]));
-    const wm = weatherData?.[0]?.weather_multiplier ? Number(weatherData[0].weather_multiplier) : 1.0;
-
-    // Aggregate supply per vegetable
     const supplyByVeg: Record<string, number> = {};
-    (cropsData || []).forEach(c => {
-      supplyByVeg[c.vegetable_id] = (supplyByVeg[c.vegetable_id] || 0) + Number(c.quantity_kg);
+    MOCK_CROPS.forEach(c => {
+      supplyByVeg[c.vegetable_id] = (supplyByVeg[c.vegetable_id] || 0) + c.quantity_kg;
     });
 
-    setTotalCrops((cropsData || []).length);
-    setTotalSupply(Object.values(supplyByVeg).reduce((a, b) => a + b, 0));
-
-    // Build supply vs demand chart data and risk
     const sdData: any[] = [];
     const risks: { name: string; icon: string; risk: RiskResult }[] = [];
     let greenCount = 0, yellowCount = 0, redCount = 0;
 
-    (vegsData || []).forEach(veg => {
+    MOCK_VEGETABLES.forEach(veg => {
       const supply = supplyByVeg[veg.id] || 0;
       const demand = demandMap.get(veg.id);
-      const dailyDemand = demand ? Number(demand.daily_demand_kg) : 1000;
-      
+      const dailyDemand = demand ? demand.daily_demand_kg : 1000;
+
       if (supply > 0 || demand) {
-        sdData.push({
-          name: veg.name,
-          supply: Math.round(supply),
-          demand: Math.round(dailyDemand),
-        });
+        sdData.push({ name: veg.name, supply: Math.round(supply), demand: Math.round(dailyDemand) });
       }
 
       if (supply > 0) {
         const risk = calculateRisk(supply, dailyDemand, wm);
-        risks.push({ name: veg.name, icon: veg.icon || '🥬', risk });
+        risks.push({ name: veg.name, icon: veg.icon, risk });
         if (risk.level === 'green') greenCount++;
         else if (risk.level === 'yellow') yellowCount++;
         else redCount++;
       }
     });
 
-    setSupplyDemandData(sdData);
-    setVegRisks(risks.sort((a, b) => b.risk.score - a.risk.score));
-    setRiskDistribution([
-      { name: 'Safe', value: greenCount },
-      { name: 'Caution', value: yellowCount },
-      { name: 'Oversupply', value: redCount },
-    ].filter(d => d.value > 0));
-
-    setLoading(false);
-  };
-
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex h-64 items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">Loading control center...</div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+    return {
+      totalFarmers: uniqueFarmers,
+      totalCrops: MOCK_CROPS.length,
+      totalSupply: Object.values(supplyByVeg).reduce((a, b) => a + b, 0),
+      activeAlerts: activeAlertCount,
+      supplyDemandData: sdData,
+      riskDistribution: [
+        { name: 'Safe', value: greenCount },
+        { name: 'Caution', value: yellowCount },
+        { name: 'Oversupply', value: redCount },
+      ].filter(d => d.value > 0),
+      vegRisks: risks.sort((a, b) => b.risk.score - a.risk.score),
+    };
+  }, []);
 
   return (
     <DashboardLayout>
@@ -162,50 +116,40 @@ export default function AdminDashboard() {
 
       {/* Charts Row */}
       <div className="mb-8 grid gap-6 lg:grid-cols-3">
-        {/* Supply vs Demand */}
         <Card className="shadow-card lg:col-span-2">
           <CardHeader>
             <CardTitle className="font-sans text-lg">Supply vs Demand Analysis</CardTitle>
           </CardHeader>
           <CardContent>
-            {supplyDemandData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={supplyDemandData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="supply" name="Supply (kg)" fill="hsl(145, 45%, 28%)" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="demand" name="Demand (kg)" fill="hsl(38, 70%, 55%)" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="py-12 text-center text-muted-foreground">No supply data yet. Farmers need to add crops first.</p>
-            )}
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={supplyDemandData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                <YAxis tick={{ fontSize: 12 }} />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="supply" name="Supply (kg)" fill="hsl(145, 45%, 28%)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="demand" name="Demand (kg)" fill="hsl(38, 70%, 55%)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
 
-        {/* Risk Distribution */}
         <Card className="shadow-card">
           <CardHeader>
             <CardTitle className="font-sans text-lg">Risk Distribution</CardTitle>
           </CardHeader>
           <CardContent>
-            {riskDistribution.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie data={riskDistribution} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
-                    {riskDistribution.map((_, i) => (
-                      <Cell key={i} fill={['#2d8a4e', '#d4a017', '#dc2626'][i % 3]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="py-12 text-center text-muted-foreground">No risk data available.</p>
-            )}
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie data={riskDistribution} cx="50%" cy="50%" outerRadius={100} dataKey="value" label={({ name, value }) => `${name}: ${value}`}>
+                  {riskDistribution.map((_, i) => (
+                    <Cell key={i} fill={['#2d8a4e', '#d4a017', '#dc2626'][i % 3]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
           </CardContent>
         </Card>
       </div>
@@ -229,9 +173,7 @@ export default function AdminDashboard() {
                 </tr>
               </thead>
               <tbody>
-                {vegRisks.length === 0 ? (
-                  <tr><td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No active supply data.</td></tr>
-                ) : vegRisks.map(vr => (
+                {vegRisks.map(vr => (
                   <tr key={vr.name} className="border-b border-border/50 hover:bg-muted/30">
                     <td className="px-4 py-3">{vr.icon} {vr.name}</td>
                     <td className="px-4 py-3 font-medium">{vr.risk.supplyKg.toLocaleString()}</td>

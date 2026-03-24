@@ -1,43 +1,23 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-
-interface Feedback {
-  id: string;
-  subject: string;
-  message: string;
-  rating: number | null;
-  status: string;
-  created_at: string;
-}
+import { MOCK_FEEDBACKS } from '@/data/mockData';
 
 export default function AdminFeedbackPage() {
   const { toast } = useToast();
-  const [feedbacks, setFeedbacks] = useState<Feedback[]>([]);
-  const [ratingData, setRatingData] = useState<{ rating: string; count: number }[]>([]);
+  const [feedbacks, setFeedbacks] = useState(MOCK_FEEDBACKS);
 
-  useEffect(() => { loadFeedback(); }, []);
+  const ratingData = [1, 2, 3, 4, 5].map(r => ({
+    rating: `${r}⭐`,
+    count: feedbacks.filter(f => f.rating === r).length,
+  }));
 
-  const loadFeedback = async () => {
-    const { data } = await supabase.from('feedback').select('*').order('created_at', { ascending: false });
-    const items = data || [];
-    setFeedbacks(items);
-
-    // Build rating distribution
-    const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
-    items.forEach(f => { if (f.rating) counts[f.rating]++; });
-    setRatingData(Object.entries(counts).map(([r, c]) => ({ rating: `${r}⭐`, count: c })));
-  };
-
-  const updateStatus = async (id: string, status: string) => {
-    await supabase.from('feedback').update({ status }).eq('id', id);
+  const updateStatus = (id: string, status: string) => {
+    setFeedbacks(prev => prev.map(f => f.id === id ? { ...f, status } : f));
     toast({ title: 'Updated' });
-    loadFeedback();
   };
 
   return (
@@ -84,9 +64,6 @@ export default function AdminFeedbackPage() {
             </CardContent>
           </Card>
         ))}
-        {feedbacks.length === 0 && (
-          <p className="py-8 text-center text-muted-foreground">No feedback received yet.</p>
-        )}
       </div>
     </DashboardLayout>
   );

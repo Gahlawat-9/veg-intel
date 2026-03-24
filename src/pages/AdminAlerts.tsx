@@ -1,6 +1,4 @@
-import { useEffect, useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useState } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Trash2 } from 'lucide-react';
+import { MOCK_ALERTS } from '@/data/mockData';
 
 interface Alert {
   id: string;
@@ -21,47 +19,37 @@ interface Alert {
 }
 
 export default function AdminAlerts() {
-  const { user } = useAuth();
   const { toast } = useToast();
-  const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>(MOCK_ALERTS);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [severity, setSeverity] = useState('info');
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => { loadAlerts(); }, []);
-
-  const loadAlerts = async () => {
-    const { data } = await supabase.from('alerts').select('*').order('created_at', { ascending: false });
-    setAlerts(data || []);
-  };
-
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !message.trim()) return;
-    setLoading(true);
-    await supabase.from('alerts').insert({
+    const newAlert: Alert = {
+      id: `a${Date.now()}`,
       title: title.trim().slice(0, 200),
       message: message.trim().slice(0, 1000),
       severity,
-      created_by: user!.id,
-    });
-    setLoading(false);
+      is_active: true,
+      created_at: new Date().toISOString(),
+    };
+    setAlerts(prev => [newAlert, ...prev]);
     setTitle('');
     setMessage('');
     toast({ title: 'Alert Created' });
-    loadAlerts();
   };
 
-  const toggleActive = async (id: string, current: boolean) => {
-    await supabase.from('alerts').update({ is_active: !current }).eq('id', id);
-    loadAlerts();
+  const toggleActive = (id: string) => {
+    setAlerts(prev => prev.map(a => a.id === id ? { ...a, is_active: !a.is_active } : a));
   };
 
   return (
     <DashboardLayout>
       <h1 className="mb-6 font-display text-3xl font-bold text-foreground">Alert Management</h1>
-      
+
       <Card className="mb-8 shadow-elevated">
         <CardContent className="pt-6">
           <form onSubmit={handleCreate} className="space-y-4">
@@ -86,7 +74,7 @@ export default function AdminAlerts() {
               <Label>Message</Label>
               <Textarea placeholder="Alert message for farmers..." value={message} onChange={e => setMessage(e.target.value)} maxLength={1000} required />
             </div>
-            <Button type="submit" disabled={loading}>{loading ? 'Creating...' : 'Create Alert'}</Button>
+            <Button type="submit">Create Alert</Button>
           </form>
         </CardContent>
       </Card>
@@ -106,7 +94,7 @@ export default function AdminAlerts() {
                 </div>
                 <p className="mt-1 text-sm text-muted-foreground">{a.message}</p>
               </div>
-              <Button variant="outline" size="sm" onClick={() => toggleActive(a.id, a.is_active)}>
+              <Button variant="outline" size="sm" onClick={() => toggleActive(a.id)}>
                 {a.is_active ? 'Deactivate' : 'Activate'}
               </Button>
             </CardContent>

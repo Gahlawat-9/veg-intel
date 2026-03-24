@@ -1,21 +1,10 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { DashboardLayout } from '@/components/DashboardLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { calculateRisk, getRiskLabel, type RiskResult } from '@/lib/riskEngine';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Users, TrendingDown, DollarSign, Leaf, ShieldCheck, Truck } from 'lucide-react';
-
-interface CropEntry {
-  id: string;
-  farmer_id: string;
-  vegetable_id: string;
-  quantity_kg: number;
-  harvest_date: string;
-  created_at: string;
-  city: string;
-}
+import { Users, TrendingDown, DollarSign, ShieldCheck, Truck } from 'lucide-react';
+import { MOCK_CROPS, MOCK_VEGETABLES, MOCK_DEMAND_CONFIG, MOCK_WEATHER } from '@/data/mockData';
 
 interface FarmerGroup {
   group: 'A' | 'B' | 'C';
@@ -25,45 +14,13 @@ interface FarmerGroup {
   farmers: { farmerId: string; quantity: number; vegName: string; vegIcon: string; createdAt: string }[];
 }
 
-interface PolicyMetrics {
-  estimatedWastePrevented: number;
-  estimatedIncomeStabilized: number;
-  farmersOptimized: number;
-  avgPriceImpact: number;
-}
-
 export default function AdminHarvestPlanner() {
-  const [loading, setLoading] = useState(true);
-  const [crops, setCrops] = useState<CropEntry[]>([]);
-  const [vegetables, setVegetables] = useState<Map<string, { name: string; icon: string }>>(new Map());
-  const [demandMap, setDemandMap] = useState<Map<string, number>>(new Map());
-  const [weatherMultiplier, setWeatherMultiplier] = useState(1.0);
+  const vegetables = useMemo(() => new Map(MOCK_VEGETABLES.map(v => [v.id, { name: v.name, icon: v.icon }])), []);
+  const demandMap = useMemo(() => new Map(MOCK_DEMAND_CONFIG.map(d => [d.vegetable_id, d.daily_demand_kg])), []);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    setLoading(true);
-    const [{ data: cropsData }, { data: vegsData }, { data: demandData }, { data: weatherData }] = await Promise.all([
-      supabase.from('crops').select('*').eq('status', 'active'),
-      supabase.from('vegetables').select('*'),
-      supabase.from('demand_config').select('*'),
-      supabase.from('weather_cache').select('*').order('fetched_at', { ascending: false }).limit(1),
-    ]);
-
-    setCrops(cropsData || []);
-    setVegetables(new Map((vegsData || []).map(v => [v.id, { name: v.name, icon: v.icon || '🥬' }])));
-    setDemandMap(new Map((demandData || []).map(d => [d.vegetable_id, Number(d.daily_demand_kg)])));
-    setWeatherMultiplier(weatherData?.[0]?.weather_multiplier ? Number(weatherData[0].weather_multiplier) : 1.0);
-    setLoading(false);
-  };
-
-  // Cluster farmers into 3 groups per vegetable
   const farmerGroups = useMemo(() => {
-    // Group crops by vegetable
-    const cropsByVeg: Record<string, CropEntry[]> = {};
-    crops.forEach(c => {
+    const cropsByVeg: Record<string, typeof MOCK_CROPS> = {};
+    MOCK_CROPS.forEach(c => {
       if (!cropsByVeg[c.vegetable_id]) cropsByVeg[c.vegetable_id] = [];
       cropsByVeg[c.vegetable_id].push(c);
     });
@@ -75,18 +32,14 @@ export default function AdminHarvestPlanner() {
     ];
 
     Object.entries(cropsByVeg).forEach(([vegId, vegCrops]) => {
-      // Sort by submission time (earliest first)
-      const sorted = [...vegCrops].sort((a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
-
+      const sorted = [...vegCrops].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       const third = Math.ceil(sorted.length / 3);
       sorted.forEach((crop, idx) => {
         const veg = vegetables.get(crop.vegetable_id);
         const groupIdx = idx < third ? 0 : idx < third * 2 ? 1 : 2;
         groups[groupIdx].farmers.push({
           farmerId: crop.farmer_id,
-          quantity: Number(crop.quantity_kg),
+          quantity: crop.quantity_kg,
           vegName: veg?.name || 'Unknown',
           vegIcon: veg?.icon || '🥬',
           createdAt: crop.created_at,
@@ -95,39 +48,24 @@ export default function AdminHarvestPlanner() {
     });
 
     return groups;
-  }, [crops, vegetables]);
+  }, [vegetables]);
 
-  // Policy Dashboard metrics
-  const policyMetrics = useMemo((): PolicyMetrics => {
-    const totalSupply = crops.reduce((a, c) => a + Number(c.quantity_kg), 0);
+  const policyMetrics = useMemo(() => {
+    const totalSupply = MOCK_CROPS.reduce((a, c) => a + c.quantity_kg, 0);
     const totalDemand = Array.from(demandMap.values()).reduce((a, b) => a + b, 0) || 1;
-
-    // Staggered harvest prevents ~15-25% waste from oversupply gluts
     const oversupplyRatio = Math.max(0, (totalSupply - totalDemand) / totalDemand);
     const wastePrevented = Math.round(totalSupply * Math.min(oversupplyRatio * 0.6, 0.25));
-
-    // Price stabilization: preventing glut saves ~10-20% price crash
-    const avgPriceKg = 30; // average ₹/kg
-    const priceImpact = Math.round(oversupplyRatio * 15); // percentage saved
+    const avgPriceKg = 30;
+    const priceImpact = Math.round(oversupplyRatio * 15);
     const incomeStabilized = Math.round(wastePrevented * avgPriceKg * (1 + priceImpact / 100));
 
     return {
       estimatedWastePrevented: wastePrevented,
       estimatedIncomeStabilized: incomeStabilized,
-      farmersOptimized: crops.length,
+      farmersOptimized: MOCK_CROPS.length,
       avgPriceImpact: Math.min(priceImpact, 20),
     };
-  }, [crops, demandMap]);
-
-  if (loading) {
-    return (
-      <DashboardLayout>
-        <div className="flex h-64 items-center justify-center">
-          <div className="animate-pulse text-muted-foreground">Loading harvest planner...</div>
-        </div>
-      </DashboardLayout>
-    );
-  }
+  }, [demandMap]);
 
   return (
     <DashboardLayout>
@@ -142,7 +80,6 @@ export default function AdminHarvestPlanner() {
           <TabsTrigger value="policy" className="gap-2"><ShieldCheck className="h-4 w-4" /> Policy Dashboard</TabsTrigger>
         </TabsList>
 
-        {/* Clustering Tab */}
         <TabsContent value="clustering" className="space-y-6">
           <div className="rounded-lg border border-border bg-muted/30 p-4">
             <h3 className="font-semibold text-foreground mb-1">How Clustering Works</h3>
@@ -187,7 +124,6 @@ export default function AdminHarvestPlanner() {
             ))}
           </div>
 
-          {/* Summary */}
           <Card className="shadow-card">
             <CardHeader>
               <CardTitle className="font-sans text-lg">Clustering Summary</CardTitle>
@@ -195,7 +131,7 @@ export default function AdminHarvestPlanner() {
             <CardContent>
               <div className="grid gap-4 md:grid-cols-4">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-foreground">{crops.length}</p>
+                  <p className="text-2xl font-bold text-foreground">{MOCK_CROPS.length}</p>
                   <p className="text-sm text-muted-foreground">Total Crop Entries</p>
                 </div>
                 <div className="text-center">
@@ -215,7 +151,6 @@ export default function AdminHarvestPlanner() {
           </Card>
         </TabsContent>
 
-        {/* Policy Dashboard Tab */}
         <TabsContent value="policy" className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
             <Card className="shadow-card">
@@ -230,7 +165,6 @@ export default function AdminHarvestPlanner() {
                 </div>
               </CardContent>
             </Card>
-
             <Card className="shadow-card">
               <CardContent className="flex items-center gap-4 pt-6">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-accent/10">
@@ -243,7 +177,6 @@ export default function AdminHarvestPlanner() {
                 </div>
               </CardContent>
             </Card>
-
             <Card className="shadow-card">
               <CardContent className="flex items-center gap-4 pt-6">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
@@ -256,7 +189,6 @@ export default function AdminHarvestPlanner() {
                 </div>
               </CardContent>
             </Card>
-
             <Card className="shadow-card">
               <CardContent className="flex items-center gap-4 pt-6">
                 <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-destructive/10">
@@ -271,7 +203,6 @@ export default function AdminHarvestPlanner() {
             </Card>
           </div>
 
-          {/* How it works */}
           <Card className="shadow-card">
             <CardHeader>
               <CardTitle className="font-sans text-lg">Impact Methodology</CardTitle>
@@ -284,7 +215,6 @@ export default function AdminHarvestPlanner() {
                   </h4>
                   <p className="text-sm text-muted-foreground">
                     Calculated as: <code className="rounded bg-muted px-1.5 py-0.5 text-xs">Oversupply × 60%</code> (capped at 25% of total supply).
-                    Staggering harvest prevents market flooding which causes unsold produce to spoil.
                   </p>
                 </div>
                 <div className="rounded-lg border border-border p-4">
@@ -293,7 +223,6 @@ export default function AdminHarvestPlanner() {
                   </h4>
                   <p className="text-sm text-muted-foreground">
                     Calculated as: <code className="rounded bg-muted px-1.5 py-0.5 text-xs">Waste Prevented × Avg Price × (1 + Price Impact%)</code>.
-                    Preventing gluts stabilizes market prices, protecting farmer revenue.
                   </p>
                 </div>
               </div>
@@ -303,7 +232,7 @@ export default function AdminHarvestPlanner() {
                 <div className="grid grid-cols-3 gap-4 text-sm">
                   <div>
                     <p className="text-muted-foreground">Total Active Supply</p>
-                    <p className="text-lg font-bold">{crops.reduce((a, c) => a + Number(c.quantity_kg), 0).toLocaleString()} kg</p>
+                    <p className="text-lg font-bold">{MOCK_CROPS.reduce((a, c) => a + c.quantity_kg, 0).toLocaleString()} kg</p>
                   </div>
                   <div>
                     <p className="text-muted-foreground">Total Daily Demand</p>
@@ -311,7 +240,7 @@ export default function AdminHarvestPlanner() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Weather Multiplier</p>
-                    <p className="text-lg font-bold">×{weatherMultiplier}</p>
+                    <p className="text-lg font-bold">×{MOCK_WEATHER.weather_multiplier}</p>
                   </div>
                 </div>
               </div>

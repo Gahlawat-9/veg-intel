@@ -1,7 +1,6 @@
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Sprout, BarChart3, Shield, Cloud, ArrowRight, Leaf } from 'lucide-react';
-import heroBg from '@/assets/hero-bg.jpg';
 
 const sdgs = [
   { num: 1, title: 'No Poverty', desc: 'Stabilizes farmer income through market intelligence', color: 'bg-red-500' },
@@ -28,11 +27,8 @@ export default function Index() {
             <span className="font-display text-xl font-bold text-foreground">VEG-INTEL</span>
           </div>
           <div className="flex items-center gap-3">
-            <Link to="/auth">
-              <Button variant="outline" size="sm">Login</Button>
-            </Link>
-            <Link to="/auth">
-              <Button size="sm">Get Started <ArrowRight className="ml-1 h-4 w-4" /></Button>
+            <Link to="/admin">
+              <Button size="sm">Admin Dashboard <ArrowRight className="ml-1 h-4 w-4" /></Button>
             </Link>
           </div>
         </div>
@@ -40,10 +36,7 @@ export default function Index() {
 
       {/* Hero */}
       <section className="relative flex min-h-[85vh] items-center overflow-hidden pt-16">
-        <div className="absolute inset-0">
-          <img src={heroBg} alt="Smart agricultural landscape" className="h-full w-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-r from-background via-background/90 to-background/40" />
-        </div>
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5" />
         <div className="container relative mx-auto px-4">
           <div className="max-w-2xl">
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-sm font-medium text-primary">
@@ -56,14 +49,9 @@ export default function Index() {
               Harvest smart, not in crowds. VEG-INTEL coordinates vegetable supply across cities to prevent market gluts, reduce waste, and stabilize farmer incomes — all with transparent, rule-based intelligence.
             </p>
             <div className="flex flex-wrap gap-4">
-              <Link to="/auth">
+              <Link to="/admin">
                 <Button size="lg" className="text-base">
-                  Start as Farmer <ArrowRight className="ml-2 h-5 w-5" />
-                </Button>
-              </Link>
-              <Link to="/auth">
-                <Button variant="outline" size="lg" className="text-base">
-                  Admin Portal
+                  Open Admin Portal <ArrowRight className="ml-2 h-5 w-5" />
                 </Button>
               </Link>
             </div>
